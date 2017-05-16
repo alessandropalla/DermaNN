@@ -41,7 +41,7 @@ class DermaNN():
 	def __init__(self):
 		print('DermaNN')
 		
-	def build_new(self, name = 'ResNet', model = None, width = 224, height = 224):
+	def build_new(self, name = 'ResNet', freeze_first = True, model = None, width = 224, height = 224):
 		if (model == None):
 			self.name = name
 			# create the base pre-trained model
@@ -76,21 +76,24 @@ class DermaNN():
 					horizontal_flip=True,
 					vertical_flip=True,
 					preprocessing_function=self.pre)
+			if(freeze_first):
+				# first: train only the top layers (which were randomly initialized)
+				for layer in self.base_model.layers:
+					layer.trainable = False
 			
 		else:
 			self.pre = None
 			self.model = model 
 			self.width = width
 			self.height = height
+			
+	def set_all_trainable(self):
+		for layer in self.model.layers:
+			layer.trainable = True
 		
-	def train(self, freeze_first = True, batch_size = 10, n_epoch = 150):
+	def train(self, batch_size = 10, n_epoch = 150):
 	
 		self.test_datagen  = image.ImageDataGenerator(preprocessing_function=self.pre)
-		
-		if(freeze_first):
-			# first: train only the top layers (which were randomly initialized)
-			for layer in self.base_model.layers:
-				layer.trainable = False
 
 		opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 		self.model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
@@ -126,18 +129,35 @@ class DermaNN():
 				
 	def evaluate(self, preprocessing = 'ResNet', batch_size = 10, height = 224, width = 224 ):
 		# Predictions
+		self.test_datagen  = image.ImageDataGenerator(preprocessing_function=self.pre)
 		test_generator = self.test_datagen.flow_from_directory(
 				'db/test',
 				target_size=(height, width),
 				batch_size=batch_size,
 				class_mode='categorical')
-		print(self.model.evaluate_generator( test_generator, steps=60))
+		test_loss, test_accuracy = self.model.evaluate_generator( test_generator, steps=60)
+		print('test_loss: %.4f - test_acc = %.4f'%(test_loss, test_accuracy))
 		
-	def load_model(self, filename, preprocessing = None):
+		y_val = np.empty((0,3), int)
+		y_pred = np.empty((0,3), int)
+		for i in range(0, 60):
+			x_val, y_val_tmp = test_generator.next()
+			y_pred_tmp = self.model.predict_on_batch(x_val)
+			y_val= np.append(y_val, y_val_tmp, axis=0)
+			y_pred= np.append(y_pred, y_pred_tmp, axis=0)
+		score = roc_auc_score(y_val, y_pred)
+		print("test AUC: {:.6f}".format(score))
+		
+		
+	def load_model(self, filename, name = None):
 		self.model = model = load_model(filename)
-		if (preprocessing == 'ResNet'):
+		self.name = name
+		tmp =  model.input_shape
+		self.height = tmp[1]
+		self.width = tmp[2]
+		if (name == 'ResNet'):
 			self.pre = ResNetPreprocessing
-		elif(preprocessing== 'Inception'):
+		elif(name== 'Inception'):
 			self.pre = applications.inception_v3.preprocess_input
 		else:
 			self.pre = None
@@ -145,8 +165,10 @@ class DermaNN():
 	
 if __name__ == "__main__":
 	nn = DermaNN()
-	nn.build_new('ResNet')
-	#nn.load_model( './model/DermaInception.h5', 'Inception')
-	nn.train(freeze_first = False, n_epoch = 30)
+	nn.build_new('ResNet', freeze_first = True)
+	nn.train(n_epoch = 5)
+	#nn.load_model( filename = './model/DermaResNet.h5', name = 'ResNet')
+	nn.set_all_trainable()
+	nn.train(n_epoch = 20)
 	nn.evaluate()
 
