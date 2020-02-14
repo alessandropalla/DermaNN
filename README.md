@@ -5,9 +5,9 @@ An expert dermatologist can detect if a nevus is malignant or not. However, Mela
 
 ## Definitions (from ISIC):
 
-Melanoma – malignant skin tumor, derived from melanocytes (melanocytic)
-Nevus – benign skin tumor, derived from melanocytes (melanocytic)
-Seborrheic keratosis – benign skin tumor, derived from keratinocytes (non-melanocytic)
+Melanoma â€“ malignant skin tumor, derived from melanocytes (melanocytic)
+Nevus â€“ benign skin tumor, derived from melanocytes (melanocytic)
+Seborrheic keratosis â€“ benign skin tumor, derived from keratinocytes (non-melanocytic)
 
 ## Neural Network
  
@@ -33,7 +33,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-- Pyhton 3
+- Python 3
 - Tensorflow
 - Keras
 - Numpy
